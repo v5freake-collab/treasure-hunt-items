@@ -39,7 +39,6 @@ local function getList(folderName)
     return list
 end
 
--- Selected items tracking
 local selectedHats   = {}
 local selectedCrates = {}
 
