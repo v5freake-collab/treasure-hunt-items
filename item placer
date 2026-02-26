@@ -23,9 +23,6 @@ local function Notify(title, content)
     })
 end
 
--- =====================
---       DUPE / TRADE
--- =====================
 local DupeTab = Window:CreateTab("Dupe", "repeat")
 
 local function getHatList()
