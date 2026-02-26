@@ -1,0 +1,97 @@
+-- Treasure Hunt Simulator | Rayfield GUI
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Treasure Hunt Simulator",
+    LoadingTitle = "Treasure Hub",
+    LoadingSubtitle = "by Hub",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "TreasureHub",
+        FileName = "Config"
+    },
+    KeySystem = false,
+})
+
+local RS = game:GetService("ReplicatedStorage")
+
+local function Notify(title, content)
+    Rayfield:Notify({
+        Title = title,
+        Content = content,
+        Duration = 3,
+        Image = "shield",
+    })
+end
+
+-- =====================
+--       DUPE / TRADE
+-- =====================
+local DupeTab = Window:CreateTab("Dupe", "repeat")
+
+local function getHatList()
+    local list = {}
+    local hats = RS:FindFirstChild("Hats")
+    if hats then
+        for _, hat in ipairs(hats:GetChildren()) do
+            table.insert(list, hat.Name)
+        end
+    end
+    if #list == 0 then
+        table.insert(list, "No Hats Found")
+    end
+    table.sort(list)
+    return list
+end
+
+local hatList = getHatList()
+local selectedHat = hatList[1]
+
+DupeTab:CreateDropdown({
+    Name = "Select Hat to Dupe",
+    Options = hatList,
+    CurrentOption = {hatList[1]},
+    Flag = "SelectedHat",
+    Callback = function(Option)
+        selectedHat = Option[1]
+    end,
+})
+
+DupeTab:CreateButton({
+    Name = "Refresh Hat List",
+    Callback = function()
+        hatList = getHatList()
+        Notify("Refreshed", #hatList .. " hats found")
+    end,
+})
+
+DupeTab:CreateToggle({
+    Name = "Auto Add to Trade (Spam)",
+    CurrentValue = false,
+    Flag = "AutoDupe",
+    Callback = function(Value)
+        if Value then
+            if selectedHat == "No Hats Found" then
+                Notify("Error", "No hat selected!")
+                return
+            end
+            _G.AutoDupe = true
+            Notify("Enabled", "Spamming: " .. selectedHat)
+            task.spawn(function()
+                local remote = RS:WaitForChild("Events", 9e9):WaitForChild("ChangeTradeQuantity", 9e9)
+                while _G.AutoDupe do
+                    pcall(function()
+                        remote:FireServer(selectedHat, "Add")
+                    end)
+                    task.wait(0.05)
+                end
+            end)
+        else
+            _G.AutoDupe = false
+            Notify("Disabled", "Auto Add to Trade off")
+        end
+    end,
+})
+
+Rayfield:LoadConfiguration()
