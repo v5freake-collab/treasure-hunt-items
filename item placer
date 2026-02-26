@@ -1,9 +1,11 @@
+-- Treasure Hunt Simulator | Rayfield GUI
+
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
     Name = "Treasure Hunt Simulator",
     LoadingTitle = "Treasure Hub",
-    LoadingSubtitle = "by v53k",
+    LoadingSubtitle = "by Hub",
     ConfigurationSaving = {
         Enabled = true,
         FolderName = "TreasureHub",
@@ -13,6 +15,7 @@ local Window = Rayfield:CreateWindow({
 })
 
 local RS = game:GetService("ReplicatedStorage")
+local player = game.Players.LocalPlayer
 
 local function Notify(title, content)
     Rayfield:Notify({
@@ -25,66 +28,189 @@ end
 
 local DupeTab = Window:CreateTab("Dupe", "repeat")
 
-local function getHatList()
+local function getList(folderName)
     local list = {}
-    local hats = RS:FindFirstChild("Hats")
-    if hats then
-        for _, hat in ipairs(hats:GetChildren()) do
-            table.insert(list, hat.Name)
+    local folder = RS:FindFirstChild(folderName)
+    if folder then
+        for _, item in ipairs(folder:GetChildren()) do
+            table.insert(list, item.Name)
         end
     end
-    if #list == 0 then
-        table.insert(list, "No Hats Found")
-    end
+    if #list == 0 then table.insert(list, "None Found") end
     table.sort(list)
     return list
 end
 
-local hatList = getHatList()
-local selectedHat = hatList[1]
+-- Selected items tracking
+local selectedHats   = {}
+local selectedCrates = {}
+
+local hatList = getList("Hats")
+
+DupeTab:CreateSection("Hats")
 
 DupeTab:CreateDropdown({
-    Name = "Select Hat to Dupe",
+    Name = "Select Hats to Add",
     Options = hatList,
-    CurrentOption = {hatList[1]},
-    Flag = "SelectedHat",
-    Callback = function(Option)
-        selectedHat = Option[1]
+    CurrentOption = {},
+    MultipleOptions = true,
+    Flag = "SelectedHats",
+    Callback = function(Options)
+        selectedHats = Options
     end,
 })
 
 DupeTab:CreateButton({
     Name = "Refresh Hat List",
     Callback = function()
-        hatList = getHatList()
+        hatList = getList("Hats")
         Notify("Refreshed", #hatList .. " hats found")
     end,
 })
 
 DupeTab:CreateToggle({
-    Name = "Auto Add to Trade (Spam)",
+    Name = "Auto Add Hats to Trade (Spam)",
     CurrentValue = false,
-    Flag = "AutoDupe",
+    Flag = "AutoDupeHats",
     Callback = function(Value)
         if Value then
-            if selectedHat == "No Hats Found" then
-                Notify("Error", "No hat selected!")
+            if #selectedHats == 0 then
+                Notify("Error", "Select at least one hat first!")
                 return
             end
-            _G.AutoDupe = true
-            Notify("Enabled", "Spamming: " .. selectedHat)
+            _G.AutoDupeHats = true
+            Notify("Enabled", "Spamming " .. #selectedHats .. " hat(s)")
             task.spawn(function()
                 local remote = RS:WaitForChild("Events", 9e9):WaitForChild("ChangeTradeQuantity", 9e9)
-                while _G.AutoDupe do
-                    pcall(function()
-                        remote:FireServer(selectedHat, "Add")
-                    end)
+                while _G.AutoDupeHats do
+                    for _, hatName in ipairs(selectedHats) do
+                        if not _G.AutoDupeHats then break end
+                        pcall(function()
+                            remote:FireServer(hatName, "Add")
+                        end)
+                        task.wait(0.05)
+                    end
+                end
+            end)
+        else
+            _G.AutoDupeHats = false
+            Notify("Disabled", "Auto Add Hats off")
+        end
+    end,
+})
+
+local crateList = getList("Crates")
+
+DupeTab:CreateSection("Crates")
+
+DupeTab:CreateDropdown({
+    Name = "Select Crates to Add",
+    Options = crateList,
+    CurrentOption = {},
+    MultipleOptions = true,
+    Flag = "SelectedCrates",
+    Callback = function(Options)
+        selectedCrates = Options
+    end,
+})
+
+DupeTab:CreateButton({
+    Name = "Refresh Crate List",
+    Callback = function()
+        crateList = getList("Crates")
+        Notify("Refreshed", #crateList .. " crates found")
+    end,
+})
+
+DupeTab:CreateToggle({
+    Name = "Auto Add Crates to Trade (Spam)",
+    CurrentValue = false,
+    Flag = "AutoDupeCrates",
+    Callback = function(Value)
+        if Value then
+            if #selectedCrates == 0 then
+                Notify("Error", "Select at least one crate first!")
+                return
+            end
+            _G.AutoDupeCrates = true
+            Notify("Enabled", "Spamming " .. #selectedCrates .. " crate(s)")
+            task.spawn(function()
+                local remote = RS:WaitForChild("Events", 9e9):WaitForChild("ChangeTradeQuantity", 9e9)
+                while _G.AutoDupeCrates do
+                    for _, crateName in ipairs(selectedCrates) do
+                        if not _G.AutoDupeCrates then break end
+                        pcall(function()
+                            remote:FireServer(crateName, "Add")
+                        end)
+                        task.wait(0.05)
+                    end
+                end
+            end)
+        else
+            _G.AutoDupeCrates = false
+            Notify("Disabled", "Auto Add Crates off")
+        end
+    end,
+})
+
+local BuyTab = Window:CreateTab("Buy Crates", "shopping-cart")
+
+local buyCrateList = getList("Crates")
+local selectedBuyCrate = buyCrateList[1]
+
+BuyTab:CreateDropdown({
+    Name = "Select Crate to Buy",
+    Options = buyCrateList,
+    CurrentOption = {buyCrateList[1]},
+    Flag = "BuyCrateSelect",
+    Callback = function(Option)
+        selectedBuyCrate = Option[1]
+    end,
+})
+
+BuyTab:CreateButton({
+    Name = "Buy Crate (x1)",
+    Callback = function()
+        if selectedBuyCrate == "None Found" then
+            Notify("Error", "No crate selected!")
+            return
+        end
+        local crateObj = RS:WaitForChild("Crates", 9e9):WaitForChild(selectedBuyCrate, 9e9)
+        local remote = RS:WaitForChild("Events", 9e9):WaitForChild("BuyCrate", 9e9)
+        pcall(function()
+            remote:FireServer(crateObj, player.Name, 1)
+        end)
+        Notify("Bought!", "Purchased " .. selectedBuyCrate)
+    end,
+})
+
+BuyTab:CreateToggle({
+    Name = "Auto Buy Crate (Spam)",
+    CurrentValue = false,
+    Flag = "AutoBuyCrate",
+    Callback = function(Value)
+        if Value then
+            if selectedBuyCrate == "None Found" then
+                Notify("Error", "No crate selected!")
+                return
+            end
+            _G.AutoBuyCrate = true
+            Notify("Enabled", "Auto buying: " .. selectedBuyCrate)
+            task.spawn(function()
+                local remote = RS:WaitForChild("Events", 9e9):WaitForChild("BuyCrate", 9e9)
+                while _G.AutoBuyCrate do
+                    local crateObj = RS:FindFirstChild("Crates") and RS.Crates:FindFirstChild(selectedBuyCrate)
+                    if crateObj then
+                        pcall(function()
+                            remote:FireServer(crateObj, player.Name, 1)
+                        end)
+                    end
                     task.wait(0.05)
                 end
             end)
         else
-            _G.AutoDupe = false
-            Notify("Disabled", "Auto Add to Trade off")
+            _G.AutoBuyCrate = false
+            Notify("Disabled", "Auto Buy Crate off")
         end
     end,
 })
